@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>NIDEC Pump Control</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fa;
+      color: #172033;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #777;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    .mqtt-status {
+      padding: 12px;
+      border-radius: 10px;
+      background: #eee;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    .speed {
+      font-size: 55px;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      border: none;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .send {
+      background: #1670d2;
+      color: white;
+    }
+
+    .stop {
+      background: #d62828;
+      color: white;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .status-box {
+      background: #f5f6f8;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .status-box span {
+      display: block;
+      color: #777;
+      font-size: 13px;
+    }
+
+    .status-box strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 18px;
+    }
+
+    #error {
+      color: #d62828;
+      margin-top: 10px;
+      font-size: 13px;
+      word-break: break-word;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>NIDEC Pump Control</h1>
+
+  <div class="subtitle">
+    Remote MQTT Dashboard
+  </div>
+
+  <div class="card">
+
+    <div id="mqttStatus" class="mqtt-status">
+      MQTT CONNECTING...
+    </div>
+
+    <div class="speed">
+      <span id="speed">50</span>%
+    </div>
+
+    <input
+      id="slider"
+      type="range"
+      min="0"
+      max="100"
+      value="50"
+    >
+
+    <div class="buttons">
+
+      <button
+        class="send"
+        onclick="sendSpeed()">
+        KIRIM PERINTAH
+      </button>
+
+      <button
+        class="stop"
+        onclick="stopPump()">
+        STOP
+      </button>
+
+    </div>
+
+    <div id="error"></div>
+
+  </div>
+
+
+  <div class="card">
+
+    <h3>Status Perangkat</h3>
+
+    <div class="status-grid">
+
+      <div class="status-box">
+        <span>ESP8266</span>
+        <strong id="deviceStatus">
+          OFFLINE
+        </strong>
+      </div>
+
+      <div class="status-box">
+        <span>Speed Feedback</span>
+        <strong id="feedback">
+          -- %
+        </strong>
+      </div>
+
+      <div class="status-box">
+        <span>RPM</span>
+        <strong>
+          -- RPM
+        </strong>
+      </div>
+
+      <div class="status-box">
+        <span>Flow</span>
+        <strong>
+          -- L/min
+        </strong>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- MQTT library -->
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+<script>
+
+const MQTT_HOST =
+  "bravealkali-e636dc78.a03.euc1.aws.hivemq.cloud";
+
+const MQTT_PORT =
+  8884;
+
+const MQTT_USERNAME =
+  "Nidecpumpesp";
+
+const MQTT_PASSWORD =
+  "psssleman1976ale";
+
+const COMMAND_TOPIC =
+  "nidec/command/speed";
+
+const STATUS_TOPIC =
+  "nidec/status/speed";
+
+
+let client = null;
+
+
+const slider =
+  document.getElementById("slider");
+
+const speed =
+  document.getElementById("speed");
+
+const mqttStatus =
+  document.getElementById("mqttStatus");
+
+const deviceStatus =
+  document.getElementById("deviceStatus");
+
+const feedback =
+  document.getElementById("feedback");
+
+const errorBox =
+  document.getElementById("error");
+
+
+/* SLIDER */
+
+slider.addEventListener(
+  "input",
+  function() {
+
+    speed.textContent =
+      slider.value;
+
+  }
+);
+
+
+/* MQTT CONNECT */
+
+function connectMQTT() {
+
+  errorBox.textContent = "";
+
+  mqttStatus.textContent =
+    "MQTT CONNECTING...";
+
+  mqttStatus.style.background =
+    "#fff3cd";
+
+  if (typeof mqtt === "undefined") {
+
+    mqttStatus.textContent =
+      "MQTT LIBRARY ERROR";
+
+    errorBox.textContent =
+      "Library MQTT tidak berhasil dimuat.";
+
+    return;
+  }
+
+
+  client = mqtt.connect(
+
+    "wss://" +
+    MQTT_HOST +
+    ":" +
+    MQTT_PORT +
+    "/mqtt",
+
+    {
+
+      username:
+        MQTT_USERNAME,
+
+      password:
+        MQTT_PASSWORD,
+
+      clientId:
+        "NIDEC-WEB-" +
+        Math.random()
+          .toString(16)
+          .substring(2),
+
+      clean: true,
+
+      reconnectPeriod: 3000,
+
+      connectTimeout: 10000
+
+    }
+
+  );
+
+
+  /* CONNECTED */
+
+  client.on(
+    "connect",
+    function() {
+
+      mqttStatus.textContent =
+        "MQTT ONLINE";
+
+      mqttStatus.style.background =
+        "#d1fae5";
+
+      deviceStatus.textContent =
+        "CONNECTED";
+
+      errorBox.textContent =
+        "";
+
+      console.log(
+        "MQTT CONNECTED"
+      );
+
+
+      client.subscribe(
+        STATUS_TOPIC,
+        function(error) {
+
+          if (error) {
+
+            console.error(
+              "Subscribe error:",
+              error
+            );
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+
+  /* MESSAGE FROM ESP */
+
+  client.on(
+    "message",
+    function(topic, payload) {
+
+      console.log(
+        "MQTT MESSAGE:",
+        topic,
+        payload.toString()
+      );
+
+
+      if (
+        topic === STATUS_TOPIC
+      ) {
+
+        const value =
+          payload.toString();
+
+        feedback.textContent =
+          value + " %";
+
+        slider.value =
+          value;
+
+        speed.textContent =
+          value;
+
+      }
+
+    }
+  );
+
+
+  /* CONNECTION CLOSED */
+
+  client.on(
+    "close",
+    function() {
+
+      mqttStatus.textContent =
+        "MQTT OFFLINE";
+
+      mqttStatus.style.background =
+        "#eee";
+
+      deviceStatus.textContent =
+        "OFFLINE";
+
+    }
+  );
+
+
+  /* RECONNECT */
+
+  client.on(
+    "reconnect",
+    function() {
+
+      mqttStatus.textContent =
+        "MQTT RECONNECTING...";
+
+      deviceStatus.textContent =
+        "CONNECTING";
+
+    }
+  );
+
+
+  /* ERROR */
+
+  client.on(
+    "error",
+    function(error) {
+
+      console.error(
+        "MQTT ERROR:",
+        error
+      );
+
+      mqttStatus.textContent =
+        "MQTT ERROR";
+
+      mqttStatus.style.background =
+        "#ffdede";
+
+      errorBox.textContent =
+        error.message ||
+        "MQTT connection error";
+
+    }
+  );
+
+}
+
+
+/* SEND SPEED */
+
+function sendSpeed() {
+
+  const value =
+    slider.value;
+
+
+  if (
+    !client ||
+    !client.connected
+  ) {
+
+    alert(
+      "MQTT belum terhubung."
+    );
+
+    return;
+
+  }
+
+
+  client.publish(
+    COMMAND_TOPIC,
+    String(value),
+    {
+      qos: 0
+    }
+  );
+
+
+  console.log(
+    "SEND SPEED:",
+    value
+  );
+
+}
+
+
+/* STOP */
+
+function stopPump() {
+
+  slider.value = 0;
+
+  speed.textContent = 0;
+
+  sendSpeed();
+
+}
+
+
+/* START */
+
+window.addEventListener(
+  "load",
+  function() {
+
+    connectMQTT();
+
+  }
+);
+
+</script>
+
+</body>
+</html>
