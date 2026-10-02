@@ -1,240 +1,301 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NIDEC Pump Control</title>
 
-  <title>NIDEC Pump Control</title>
+<style>
+:root{
+  color-scheme:light dark;
+  --bg:light-dark(#f4f7fb,#0d1117);
+  --surface:light-dark(#fff,#161b22);
+  --surface2:light-dark(#f8fafc,#1c2128);
+  --text:light-dark(#172033,#f0f3f6);
+  --muted:light-dark(#667085,#9da7b3);
+  --border:light-dark(#dfe5ec,#30363d);
+  --accent:light-dark(#1667d9,#4ea1ff);
+  --danger:light-dark(#c62828,#ff6b6b)
+}
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+*{box-sizing:border-box}
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f6fa;
-      color: #172033;
-    }
+html,body{
+  margin:0;
+  min-height:100%;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);
+  color:var(--text)
+}
 
-    .container {
-      max-width: 700px;
-      margin: auto;
-      padding: 20px;
-    }
+#app{
+  min-height:100vh;
+  background:var(--bg);
+  padding:20px
+}
 
-    h1 {
-      margin-bottom: 5px;
-    }
+.wrap{
+  max-width:760px;
+  margin:auto
+}
 
-    .subtitle {
-      color: #777;
-      margin-bottom: 20px;
-    }
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px
+}
 
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    }
+.title{
+  font-size:25px;
+  font-weight:800
+}
 
-    .mqtt-status {
-      padding: 12px;
-      border-radius: 10px;
-      background: #eee;
-      margin-bottom: 15px;
-      font-weight: bold;
-    }
+.sub{
+  color:var(--muted);
+  font-size:13px;
+  margin-top:3px
+}
 
-    .speed {
-      font-size: 55px;
-      font-weight: bold;
-      text-align: center;
-      margin: 15px;
-    }
+.badge{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 11px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--surface)
+}
 
-    input[type="range"] {
-      width: 100%;
-    }
+.dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#35a853
+}
 
-    .buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 20px;
-    }
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:14px;
+  box-shadow:0 6px 24px rgba(0,0,0,.05)
+}
 
-    button {
-      border: none;
-      padding: 15px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+.speedrow{
+  display:flex;
+  justify-content:space-between;
+  align-items:end
+}
 
-    .send {
-      background: #1670d2;
-      color: white;
-    }
+.label{
+  font-size:14px;
+  color:var(--muted)
+}
 
-    .stop {
-      background: #d62828;
-      color: white;
-    }
+.speed{
+  font-size:56px;
+  font-weight:800;
+  line-height:1
+}
 
-    .status-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+.unit{
+  font-size:20px;
+  color:var(--muted);
+  margin-left:4px
+}
 
-    .status-box {
-      background: #f5f6f8;
-      padding: 15px;
-      border-radius: 10px;
-    }
+.range{
+  width:100%;
+  margin:24px 0 10px;
+  accent-color:var(--accent)
+}
 
-    .status-box span {
-      display: block;
-      color: #777;
-      font-size: 13px;
-    }
+.ticks{
+  display:flex;
+  justify-content:space-between;
+  color:var(--muted);
+  font-size:12px
+}
 
-    .status-box strong {
-      display: block;
-      margin-top: 5px;
-      font-size: 18px;
-    }
+.buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:18px
+}
 
-    #error {
-      color: #d62828;
-      margin-top: 10px;
-      font-size: 13px;
-      word-break: break-word;
-    }
-  </style>
+.btn{
+  border:1px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  border-radius:12px;
+  padding:13px;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer
+}
+
+.btn.primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:white
+}
+
+.btn.stop{
+  background:var(--danger);
+  border-color:var(--danger);
+  color:white
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px
+}
+
+.stat{
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--surface2)
+}
+
+.stat b{
+  display:block;
+  font-size:19px;
+  margin-top:4px
+}
+
+.note{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.5;
+  margin-top:12px
+}
+
+.footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:16px
+}
+
+@media(max-width:520px){
+  #app{padding:14px}
+  .card{padding:16px}
+  .speed{font-size:48px}
+  .grid{grid-template-columns:1fr}
+  .buttons{grid-template-columns:1fr}
+}
+</style>
 </head>
 
 <body>
 
-<div class="container">
+<div id="app">
+<div class="wrap">
 
-  <h1>NIDEC Pump Control</h1>
+  <div class="top">
+    <div>
+      <div class="title">NIDEC Pump Control</div>
+      <div class="sub">Remote dashboard</div>
+    </div>
 
-  <div class="subtitle">
-    Remote MQTT Dashboard
+    <div class="badge">
+      <span class="dot"></span>
+      <span id="conn">CHECKING...</span>
+    </div>
   </div>
 
   <div class="card">
 
-    <div id="mqttStatus" class="mqtt-status">
-      MQTT CONNECTING...
-    </div>
+    <div class="speedrow">
+      <div>
+        <div class="label">Pump speed command</div>
+      </div>
 
-    <div class="speed">
-      <span id="speed">50</span>%
+      <div>
+        <span id="speed" class="speed">0</span>
+        <span class="unit">%</span>
+      </div>
     </div>
 
     <input
       id="slider"
+      class="range"
       type="range"
       min="0"
       max="100"
-      value="50"
+      value="0"
     >
 
-    <div class="buttons">
-
-      <button
-        class="send"
-        onclick="sendSpeed()">
-        KIRIM PERINTAH
-      </button>
-
-      <button
-        class="stop"
-        onclick="stopPump()">
-        STOP
-      </button>
-
+    <div class="ticks">
+      <span>0%</span>
+      <span>25%</span>
+      <span>50%</span>
+      <span>75%</span>
+      <span>100%</span>
     </div>
 
-    <div id="error"></div>
+    <div class="buttons">
+      <button class="btn primary" id="send">
+        Kirim perintah
+      </button>
+
+      <button class="btn stop" id="stop">
+        STOP
+      </button>
+    </div>
 
   </div>
-
 
   <div class="card">
 
-    <h3>Status Perangkat</h3>
+    <div class="label">Status perangkat</div>
 
-    <div class="status-grid">
+    <div class="grid" style="margin-top:10px">
 
-      <div class="status-box">
-        <span>ESP8266</span>
-        <strong id="deviceStatus">
-          OFFLINE
-        </strong>
+      <div class="stat">
+        <div class="label">ESP8266</div>
+        <b id="device">OFFLINE</b>
       </div>
 
-      <div class="status-box">
-        <span>Speed Feedback</span>
-        <strong id="feedback">
-          -- %
-        </strong>
+      <div class="stat">
+        <div class="label">Speed feedback</div>
+        <b id="feedback">--%</b>
       </div>
 
-      <div class="status-box">
-        <span>RPM</span>
-        <strong>
-          -- RPM
-        </strong>
+      <div class="stat">
+        <div class="label">RPM</div>
+        <b>-- RPM</b>
       </div>
 
-      <div class="status-box">
-        <span>Flow</span>
-        <strong>
-          -- L/min
-        </strong>
+      <div class="stat">
+        <div class="label">Flow</div>
+        <b>-- L/min</b>
       </div>
 
     </div>
 
+    <div class="note">
+      Dashboard terhubung ke backend NIDEC.
+    </div>
+
+  </div>
+
+  <div class="footer">
+    NIDEC • ESP8266 • HiveMQ Cloud
   </div>
 
 </div>
-
-
-<!-- MQTT library -->
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</div>
 
 <script>
 
-const MQTT_HOST =
-  "bravealkali-e636dc78.a03.euc1.aws.hivemq.cloud";
-
-const MQTT_PORT =
-  8884;
-
-const MQTT_USERNAME =
-  "Nidecpumpesp";
-
-const MQTT_PASSWORD =
-  "psssleman1976ale";
-
-const COMMAND_TOPIC =
-  "nidec/command/speed";
-
-const STATUS_TOPIC =
-  "nidec/status/speed";
-
-
-let client = null;
-
+const API_BASE =
+  "https://nidecpumpesp.de.deplexo.com";
 
 const slider =
   document.getElementById("slider");
@@ -242,291 +303,153 @@ const slider =
 const speed =
   document.getElementById("speed");
 
-const mqttStatus =
-  document.getElementById("mqttStatus");
-
-const deviceStatus =
-  document.getElementById("deviceStatus");
-
 const feedback =
   document.getElementById("feedback");
 
-const errorBox =
-  document.getElementById("error");
+const conn =
+  document.getElementById("conn");
+
+const device =
+  document.getElementById("device");
 
 
-/* SLIDER */
+slider.addEventListener("input", () => {
 
-slider.addEventListener(
-  "input",
-  function() {
+  speed.textContent = slider.value;
 
-    speed.textContent =
-      slider.value;
-
-  }
-);
+});
 
 
-/* MQTT CONNECT */
+async function refreshStatus(){
 
-function connectMQTT() {
+  try{
 
-  errorBox.textContent = "";
+    const response =
+      await fetch(API_BASE + "/api/status");
 
-  mqttStatus.textContent =
-    "MQTT CONNECTING...";
+    if(!response.ok){
+      throw new Error("Backend offline");
+    }
 
-  mqttStatus.style.background =
-    "#fff3cd";
+    const data =
+      await response.json();
 
-  if (typeof mqtt === "undefined") {
+    const value =
+      Number(data.speed);
 
-    mqttStatus.textContent =
-      "MQTT LIBRARY ERROR";
+    if(Number.isFinite(value)){
 
-    errorBox.textContent =
-      "Library MQTT tidak berhasil dimuat.";
+      feedback.textContent =
+        value + "%";
 
-    return;
-  }
+      slider.value =
+        value;
 
-
-  client = mqtt.connect(
-
-    "wss://" +
-    MQTT_HOST +
-    ":" +
-    MQTT_PORT +
-    "/mqtt",
-
-    {
-
-      username:
-        MQTT_USERNAME,
-
-      password:
-        MQTT_PASSWORD,
-
-      clientId:
-        "NIDEC-WEB-" +
-        Math.random()
-          .toString(16)
-          .substring(2),
-
-      clean: true,
-
-      reconnectPeriod: 3000,
-
-      connectTimeout: 10000
+      speed.textContent =
+        value;
 
     }
 
-  );
+    if(data.mqtt){
 
+      conn.textContent =
+        "BACKEND ONLINE";
 
-  /* CONNECTED */
-
-  client.on(
-    "connect",
-    function() {
-
-      mqttStatus.textContent =
-        "MQTT ONLINE";
-
-      mqttStatus.style.background =
-        "#d1fae5";
-
-      deviceStatus.textContent =
+      device.textContent =
         "CONNECTED";
 
-      errorBox.textContent =
-        "";
+    }else{
 
-      console.log(
-        "MQTT CONNECTED"
-      );
-
-
-      client.subscribe(
-        STATUS_TOPIC,
-        function(error) {
-
-          if (error) {
-
-            console.error(
-              "Subscribe error:",
-              error
-            );
-
-          }
-
-        }
-      );
-
-    }
-  );
-
-
-  /* MESSAGE FROM ESP */
-
-  client.on(
-    "message",
-    function(topic, payload) {
-
-      console.log(
-        "MQTT MESSAGE:",
-        topic,
-        payload.toString()
-      );
-
-
-      if (
-        topic === STATUS_TOPIC
-      ) {
-
-        const value =
-          payload.toString();
-
-        feedback.textContent =
-          value + " %";
-
-        slider.value =
-          value;
-
-        speed.textContent =
-          value;
-
-      }
-
-    }
-  );
-
-
-  /* CONNECTION CLOSED */
-
-  client.on(
-    "close",
-    function() {
-
-      mqttStatus.textContent =
+      conn.textContent =
         "MQTT OFFLINE";
 
-      mqttStatus.style.background =
-        "#eee";
-
-      deviceStatus.textContent =
+      device.textContent =
         "OFFLINE";
 
     }
-  );
 
+  }catch(error){
 
-  /* RECONNECT */
+    conn.textContent =
+      "BACKEND OFFLINE";
 
-  client.on(
-    "reconnect",
-    function() {
+    device.textContent =
+      "OFFLINE";
 
-      mqttStatus.textContent =
-        "MQTT RECONNECTING...";
-
-      deviceStatus.textContent =
-        "CONNECTING";
-
-    }
-  );
-
-
-  /* ERROR */
-
-  client.on(
-    "error",
-    function(error) {
-
-      console.error(
-        "MQTT ERROR:",
-        error
-      );
-
-      mqttStatus.textContent =
-        "MQTT ERROR";
-
-      mqttStatus.style.background =
-        "#ffdede";
-
-      errorBox.textContent =
-        error.message ||
-        "MQTT connection error";
-
-    }
-  );
+  }
 
 }
 
 
-/* SEND SPEED */
+async function sendSpeed(value){
 
-function sendSpeed() {
+  try{
 
-  const value =
-    slider.value;
+    const response =
+      await fetch(API_BASE + "/api/speed", {
 
+        method:"POST",
 
-  if (
-    !client ||
-    !client.connected
-  ) {
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+          speed:Number(value)
+        })
+
+      });
+
+    if(!response.ok){
+
+      throw new Error("Command failed");
+
+    }
+
+    await refreshStatus();
+
+  }catch(error){
 
     alert(
-      "MQTT belum terhubung."
+      "Backend belum terhubung."
     );
 
-    return;
-
   }
-
-
-  client.publish(
-    COMMAND_TOPIC,
-    String(value),
-    {
-      qos: 0
-    }
-  );
-
-
-  console.log(
-    "SEND SPEED:",
-    value
-  );
 
 }
 
 
-/* STOP */
+document
+  .getElementById("send")
+  .addEventListener("click", () => {
 
-function stopPump() {
+    sendSpeed(slider.value);
 
-  slider.value = 0;
-
-  speed.textContent = 0;
-
-  sendSpeed();
-
-}
+  });
 
 
-/* START */
+document
+  .getElementById("stop")
+  .addEventListener("click", () => {
 
-window.addEventListener(
-  "load",
-  function() {
+    slider.value = 0;
+    speed.textContent = "0";
 
-    connectMQTT();
+    sendSpeed(0);
 
-  }
-);
+  });
+
+
+window.addEventListener("load", () => {
+
+  refreshStatus();
+
+  setInterval(
+    refreshStatus,
+    2000
+  );
+
+});
 
 </script>
 
