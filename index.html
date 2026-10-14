@@ -252,6 +252,26 @@ html,body{
   </div>
 
   <div class="card">
+    <div class="label">Timer pompa</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <label style="font-size:14px">Durasi
+        <select id="duration" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
+          <option value="15">15 menit</option><option value="30">30 menit</option><option value="45">45 menit</option><option value="60">60 menit</option><option value="90" selected>90 menit</option><option value="120">120 menit</option><option value="custom">Atur sendiri</option>
+        </select>
+      </label>
+      <label id="customWrap" style="font-size:14px;display:none">Menit sendiri
+        <input id="customDuration" type="number" min="1" max="720" value="90" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
+      </label>
+    </div>
+    <div style="margin-top:14px">Sisa waktu: <strong id="countdown">Belum aktif</strong></div>
+    <div class="buttons">
+      <button class="btn primary" id="startTimer">MULAI TIMER &amp; POMPA</button>
+      <button class="btn" id="cancelTimer">Batalkan timer</button>
+    </div>
+    <div class="note">Timer berjalan selama halaman ini tetap terbuka. Jangan jadikan timer web sebagai satu-satunya pengaman agar tangki tidak meluap.</div>
+  </div>
+
+  <div class="card">
 
     <div class="label">Status perangkat</div>
 
@@ -311,6 +331,35 @@ const conn =
 
 const device =
   document.getElementById("device");
+
+const durationSelect = document.getElementById("duration");
+const customWrap = document.getElementById("customWrap");
+const customDuration = document.getElementById("customDuration");
+const countdown = document.getElementById("countdown");
+let timerInterval = null;
+let timerEndsAt = 0;
+
+function cancelCountdown(message = "Timer dibatalkan") {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  timerEndsAt = 0;
+  countdown.textContent = message;
+}
+
+function updateCountdown() {
+  const remaining = Math.max(0, timerEndsAt - Date.now());
+  const totalSeconds = Math.ceil(remaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  countdown.textContent = [hours, minutes, seconds].map(n => String(n).padStart(2, "0")).join(":");
+  if (remaining <= 0) {
+    cancelCountdown("Waktu habis — mengirim OFF…");
+    sendSpeed(0).then(ok => {
+      countdown.textContent = ok ? "Selesai — perintah OFF terkirim" : "Waktu habis — OFF gagal dikirim";
+    });
+  }
+}
 
 
 slider.addEventListener("input", () => {
@@ -384,59 +433,60 @@ async function refreshStatus(){
 async function sendSpeed(value){
 
   try{
-
-    const response =
-      await fetch(API_BASE + "/api/speed", {
-
-        method:"POST",
-
-        headers:{
-          "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
-          speed:Number(value)
-        })
-
-      });
-
-    if(!response.ok){
-
-      throw new Error("Command failed");
-
-    }
-
+    const response = await fetch(API_BASE + "/api/speed", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({speed:Number(value)})
+    });
+    if(!response.ok) throw new Error("Command failed");
     await refreshStatus();
-
+    return true;
   }catch(error){
-
-    alert(
-      "Backend belum terhubung."
-    );
-
+    alert("Backend belum terhubung. Perintah tidak terkirim.");
+    return false;
   }
-
 }
 
 
 document
   .getElementById("send")
-  .addEventListener("click", () => {
+  .addEventListener("click", () => sendSpeed(slider.value));
 
-    sendSpeed(slider.value);
+durationSelect.addEventListener("change", () => {
+  customWrap.style.display = durationSelect.value === "custom" ? "block" : "none";
+});
 
-  });
+document.getElementById("startTimer").addEventListener("click", async () => {
+  const minutes = durationSelect.value === "custom" ? Number(customDuration.value) : Number(durationSelect.value);
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 720) {
+    alert("Masukkan durasi 1 sampai 720 menit.");
+    return;
+  }
+  cancelCountdown("Mengirim perintah ON…");
+  const sent = await sendSpeed(100);
+  if (!sent) {
+    countdown.textContent = "Gagal memulai — periksa koneksi";
+    return;
+  }
+  slider.value = 100;
+  speed.textContent = "100";
+  timerEndsAt = Date.now() + minutes * 60 * 1000;
+  updateCountdown();
+  timerInterval = setInterval(updateCountdown, 1000);
+});
+
+document.getElementById("cancelTimer").addEventListener("click", () => {
+  cancelCountdown("Timer dibatalkan — pompa tidak dimatikan");
+});
 
 
 document
   .getElementById("stop")
-  .addEventListener("click", () => {
-
+  .addEventListener("click", async () => {
+    cancelCountdown("Pompa dihentikan manual");
     slider.value = 0;
     speed.textContent = "0";
-
-    sendSpeed(0);
-
+    await sendSpeed(0);
   });
 
 
