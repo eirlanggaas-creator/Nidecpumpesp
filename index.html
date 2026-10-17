@@ -256,19 +256,47 @@ html,body{
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <label style="font-size:14px">Durasi
         <select id="duration" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
-          <option value="15">15 menit</option><option value="30">30 menit</option><option value="45">45 menit</option><option value="60">60 menit</option><option value="90" selected>90 menit</option><option value="120">120 menit</option><option value="custom">Atur sendiri</option>
+          <option value="60">1 menit (uji)</option><option value="300">5 menit</option><option value="900">15 menit</option><option value="1800">30 menit</option><option value="3600">60 menit</option><option value="5400" selected>90 menit</option><option value="7200">120 menit</option><option value="custom">Atur sendiri (detik)</option>
         </select>
       </label>
-      <label id="customWrap" style="font-size:14px;display:none">Menit sendiri
-        <input id="customDuration" type="number" min="1" max="720" value="90" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
+      <label id="customWrap" style="font-size:14px;display:none">Durasi sendiri (detik)
+        <input id="customDuration" type="number" min="1" max="86400" value="5400" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
       </label>
     </div>
-    <div style="margin-top:14px">Sisa waktu: <strong id="countdown">Belum aktif</strong></div>
+    <div style="margin-top:14px">Sisa waktu dari ESP8266: <strong id="countdown">Belum aktif</strong></div>
     <div class="buttons">
-      <button class="btn primary" id="startTimer">MULAI TIMER &amp; POMPA</button>
+      <button class="btn primary" id="startTimer">MULAI TIMER POMPA</button>
       <button class="btn" id="cancelTimer">Batalkan timer</button>
     </div>
-    <div class="note">Timer berjalan selama halaman ini tetap terbuka. Jangan jadikan timer web sebagai satu-satunya pengaman agar tangki tidak meluap.</div>
+    <div class="note">Timer dijalankan oleh ESP8266. Menutup website tidak menghentikan timer. Membatalkan timer tidak mematikan pompa; gunakan STOP jika ingin mematikannya.</div>
+  </div>
+
+  <div class="card">
+    <div class="speedrow">
+      <div><div class="label">Solenoid</div><div class="sub">Kontrol manual ON/OFF</div></div>
+      <strong id="solenoidStatus" style="font-size:24px">UNKNOWN</strong>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="solenoidOn">SOLENOID ON</button>
+      <button class="btn stop" id="solenoidOff">SOLENOID OFF</button>
+    </div>
+    <div class="label" style="margin-top:18px">Timer solenoid</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <label style="font-size:14px">Durasi
+        <select id="solenoidDuration" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
+          <option value="60">1 menit (uji)</option><option value="300" selected>5 menit</option><option value="900">15 menit</option><option value="1800">30 menit</option><option value="3600">60 menit</option><option value="custom">Atur sendiri (detik)</option>
+        </select>
+      </label>
+      <label id="solenoidCustomWrap" style="font-size:14px;display:none">Durasi sendiri (detik)
+        <input id="solenoidCustomDuration" type="number" min="1" max="86400" value="300" style="display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text)">
+      </label>
+    </div>
+    <div style="margin-top:14px">Sisa waktu dari ESP8266: <strong id="solenoidCountdown">Belum aktif</strong></div>
+    <div class="buttons">
+      <button class="btn primary" id="startSolenoidTimer">MULAI TIMER SOLENOID</button>
+      <button class="btn" id="cancelSolenoidTimer">Batalkan timer</button>
+    </div>
+    <div class="note">Timer solenoid terpisah dari timer pompa dan tetap berjalan ketika halaman ditutup, selama ESP8266 menyala.</div>
   </div>
 
   <div class="card">
@@ -300,7 +328,7 @@ html,body{
     </div>
 
     <div class="note">
-      Dashboard terhubung ke backend NIDEC.
+      Dashboard NIDEC • Timer dijalankan oleh ESP8266.
     </div>
 
   </div>
@@ -336,29 +364,18 @@ const durationSelect = document.getElementById("duration");
 const customWrap = document.getElementById("customWrap");
 const customDuration = document.getElementById("customDuration");
 const countdown = document.getElementById("countdown");
-let timerInterval = null;
-let timerEndsAt = 0;
+const solenoidStatus = document.getElementById("solenoidStatus");
+const solenoidDuration = document.getElementById("solenoidDuration");
+const solenoidCustomWrap = document.getElementById("solenoidCustomWrap");
+const solenoidCustomDuration = document.getElementById("solenoidCustomDuration");
+const solenoidCountdown = document.getElementById("solenoidCountdown");
 
-function cancelCountdown(message = "Timer dibatalkan") {
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = null;
-  timerEndsAt = 0;
-  countdown.textContent = message;
-}
-
-function updateCountdown() {
-  const remaining = Math.max(0, timerEndsAt - Date.now());
-  const totalSeconds = Math.ceil(remaining / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  countdown.textContent = [hours, minutes, seconds].map(n => String(n).padStart(2, "0")).join(":");
-  if (remaining <= 0) {
-    cancelCountdown("Waktu habis — mengirim OFF…");
-    sendSpeed(0).then(ok => {
-      countdown.textContent = ok ? "Selesai — perintah OFF terkirim" : "Waktu habis — OFF gagal dikirim";
-    });
-  }
+function formatRemaining(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
 }
 
 
@@ -370,63 +387,37 @@ slider.addEventListener("input", () => {
 
 
 async function refreshStatus(){
+  try {
+    const response = await fetch(API_BASE + "/api/status", { cache: "no-store" });
+    if (!response.ok) throw new Error("Backend offline");
+    const data = await response.json();
 
-  try{
-
-    const response =
-      await fetch(API_BASE + "/api/status");
-
-    if(!response.ok){
-      throw new Error("Backend offline");
+    const value = Number(data.speed);
+    if (Number.isFinite(value)) {
+      feedback.textContent = value + "%";
+      slider.value = value;
+      speed.textContent = value;
     }
 
-    const data =
-      await response.json();
+    solenoidStatus.textContent = data.solenoid === true ? "ON" :
+      data.solenoid === false ? "OFF" : "UNKNOWN";
 
-    const value =
-      Number(data.speed);
+    countdown.textContent = data.pumpTimer > 0 ?
+      formatRemaining(data.pumpTimer) : "Tidak aktif";
+    solenoidCountdown.textContent = data.solenoidTimer > 0 ?
+      formatRemaining(data.solenoidTimer) : "Tidak aktif";
 
-    if(Number.isFinite(value)){
-
-      feedback.textContent =
-        value + "%";
-
-      slider.value =
-        value;
-
-      speed.textContent =
-        value;
-
+    if (data.mqtt) {
+      conn.textContent = "BACKEND ONLINE";
+      device.textContent = "CONNECTED";
+    } else {
+      conn.textContent = "MQTT OFFLINE";
+      device.textContent = "OFFLINE";
     }
-
-    if(data.mqtt){
-
-      conn.textContent =
-        "BACKEND ONLINE";
-
-      device.textContent =
-        "CONNECTED";
-
-    }else{
-
-      conn.textContent =
-        "MQTT OFFLINE";
-
-      device.textContent =
-        "OFFLINE";
-
-    }
-
-  }catch(error){
-
-    conn.textContent =
-      "BACKEND OFFLINE";
-
-    device.textContent =
-      "OFFLINE";
-
+  } catch (error) {
+    conn.textContent = "BACKEND OFFLINE";
+    device.textContent = "OFFLINE";
   }
-
 }
 
 
@@ -455,28 +446,67 @@ document
 durationSelect.addEventListener("change", () => {
   customWrap.style.display = durationSelect.value === "custom" ? "block" : "none";
 });
-
-document.getElementById("startTimer").addEventListener("click", async () => {
-  const minutes = durationSelect.value === "custom" ? Number(customDuration.value) : Number(durationSelect.value);
-  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 720) {
-    alert("Masukkan durasi 1 sampai 720 menit.");
-    return;
-  }
-  cancelCountdown("Mengirim perintah ON…");
-  const sent = await sendSpeed(100);
-  if (!sent) {
-    countdown.textContent = "Gagal memulai — periksa koneksi";
-    return;
-  }
-  slider.value = 100;
-  speed.textContent = "100";
-  timerEndsAt = Date.now() + minutes * 60 * 1000;
-  updateCountdown();
-  timerInterval = setInterval(updateCountdown, 1000);
+solenoidDuration.addEventListener("change", () => {
+  solenoidCustomWrap.style.display = solenoidDuration.value === "custom" ? "block" : "none";
 });
 
-document.getElementById("cancelTimer").addEventListener("click", () => {
-  cancelCountdown("Timer dibatalkan — pompa tidak dimatikan");
+async function postCommand(path, body) {
+  try {
+    const response = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(detail.error || "Perintah gagal");
+    }
+    await refreshStatus();
+    return true;
+  } catch (error) {
+    alert("Perintah gagal: " + error.message);
+    return false;
+  }
+}
+
+document.getElementById("startTimer").addEventListener("click", async () => {
+  const seconds = durationSelect.value === "custom" ?
+    Number(customDuration.value) : Number(durationSelect.value);
+  const pumpSpeed = Number(slider.value);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400) {
+    alert("Durasi pompa harus 1 sampai 86400 detik.");
+    return;
+  }
+  if (!Number.isInteger(pumpSpeed) || pumpSpeed < 1 || pumpSpeed > 100) {
+    alert("Atur kecepatan pompa antara 1 sampai 100%.");
+    return;
+  }
+  await postCommand("/api/pump/timer", { speed: pumpSpeed, seconds });
+});
+
+document.getElementById("cancelTimer").addEventListener("click", async () => {
+  await postCommand("/api/pump/timer/cancel", {});
+});
+
+document.getElementById("solenoidOn").addEventListener("click", async () => {
+  await postCommand("/api/solenoid", { on: true });
+});
+document.getElementById("solenoidOff").addEventListener("click", async () => {
+  await postCommand("/api/solenoid", { on: false });
+});
+
+document.getElementById("startSolenoidTimer").addEventListener("click", async () => {
+  const seconds = solenoidDuration.value === "custom" ?
+    Number(solenoidCustomDuration.value) : Number(solenoidDuration.value);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400) {
+    alert("Durasi solenoid harus 1 sampai 86400 detik.");
+    return;
+  }
+  await postCommand("/api/solenoid/timer", { seconds });
+});
+
+document.getElementById("cancelSolenoidTimer").addEventListener("click", async () => {
+  await postCommand("/api/solenoid/timer/cancel", {});
 });
 
 
@@ -486,7 +516,7 @@ document
     cancelCountdown("Pompa dihentikan manual");
     slider.value = 0;
     speed.textContent = "0";
-    await sendSpeed(0);
+    await postCommand("/api/speed", { speed: 0 });
   });
 
 
