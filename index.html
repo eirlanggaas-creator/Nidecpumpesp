@@ -513,7 +513,6 @@ document.getElementById("cancelSolenoidTimer").addEventListener("click", async (
 document
   .getElementById("stop")
   .addEventListener("click", async () => {
-    cancelCountdown("Pompa dihentikan manual");
     slider.value = 0;
     speed.textContent = "0";
     await postCommand("/api/speed", { speed: 0 });
