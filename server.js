@@ -110,7 +110,7 @@ app.post("/api/pump/timer", (req, res) => {
 });
 
 app.post("/api/pump/timer/cancel", (req, res) => {
-  return publish(TOPICS.pumpCommand, String(currentSpeed), res);
+  return publish(TOPICS.pumpCommand, "CANCEL_TIMER", res);
 });
 
 app.post("/api/solenoid", (req, res) => {
@@ -129,7 +129,7 @@ app.post("/api/solenoid/timer", (req, res) => {
 });
 
 app.post("/api/solenoid/timer/cancel", (req, res) => {
-  return publish(TOPICS.solenoidCommand, currentSolenoid ? "ON" : "OFF", res);
+  return publish(TOPICS.solenoidCommand, "CANCEL_TIMER", res);
 });
 
 app.get("/api/status", (req, res) => {
