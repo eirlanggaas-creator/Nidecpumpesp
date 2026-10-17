@@ -162,6 +162,11 @@ bool parseUnsignedLong(const char* s, unsigned long &result) {
 // Pump payload: "0".."100", "OFF", or "T:<speed>:<seconds>".
 // Solenoid payload: "ON", "OFF", or "T:<seconds>".
 void handlePumpCommand(char* msg) {
+  if (strcmp(msg, "CANCEL_TIMER") == 0) {
+    stopPumpTimer();
+    publishTimerStatus();
+    return;
+  }
   if (strcmp(msg, "OFF") == 0) {
     pumpManual(0);
     return;
@@ -188,6 +193,11 @@ void handlePumpCommand(char* msg) {
 }
 
 void handleSolenoidCommand(char* msg) {
+  if (strcmp(msg, "CANCEL_TIMER") == 0) {
+    stopSolenoidTimer();
+    publishTimerStatus();
+    return;
+  }
   if (strcmp(msg, "ON") == 0) {
     solenoidManual(true);
     return;
